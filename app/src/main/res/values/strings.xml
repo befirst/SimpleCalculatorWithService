@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">CalculatorService</string>
+    <string name="action_settings">Settings</string>
+    <string name="hint">Type simple mathematical expression</string>
+    <string name="error">Error!</string>
+    <string name="error_detail">Something going wrong. Probably was typed unacceptable symbols.</string>
+    <string name="ok_button_text">OK</string>
+    <string name="divide_by_zero">Divide by zero</string>
+</resources>
