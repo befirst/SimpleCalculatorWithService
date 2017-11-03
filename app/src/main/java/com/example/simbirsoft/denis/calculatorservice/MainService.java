@@ -1,15 +1,17 @@
 package com.example.simbirsoft.denis.calculatorservice;
 
-import android.app.Service;
+import android.app.IntentService;
+import android.content.Context;
 import android.content.Intent;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.ResultReceiver;
+import android.support.annotation.Nullable;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class MainService extends Service {
+public class MainService extends IntentService {
     private static final String expressionRegex = "-?[0-9]+[\\.]?[0-9]*[+\\-*/]-?[0-9]+[\\.]?[0-9]*";
     private static final String acceptableMathSignsRegex = "[+\\-*/]";
     private static final String numberRegex = "-?[0-9]+[\\.]?[0-9]*";
@@ -17,31 +19,41 @@ public class MainService extends Service {
     private Pattern mathSignsPattern = Pattern.compile(acceptableMathSignsRegex);
     private Pattern numberPattern = Pattern.compile(numberRegex);
 
-    ExecutorService executor;
+    //ExecutorService executor;
 
     public MainService() {
+        super("MainService");
     }
 
     @Override
     public void onCreate() {
         super.onCreate();
-        executor = Executors.newSingleThreadExecutor();
+        //executor = Executors.newSingleThreadExecutor();
+    }
+
+    public static void startCalculationByService(Context context, CalculatorResultReceiver.ResultReceiverCallBack resultReceiverCallBack, String expression){
+        CalculatorResultReceiver calculatorResultReceiver = new CalculatorResultReceiver(new Handler(context.getMainLooper()));
+        calculatorResultReceiver.setReceiver(resultReceiverCallBack);
+
+        Intent intent = new Intent(context, MainService.class);
+        intent.putExtra(MainActivity.CODE_EXTRA_EXPRESSION, expression);
+        intent.putExtra(MainActivity.CODE_EXTRA_RECEIVER, calculatorResultReceiver);
+        context.startService(intent);
     }
 
     @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
+    protected void onHandleIntent(@Nullable Intent intent) {
         CalculatorRun calculator = new CalculatorRun();
         if(intent.hasExtra(MainActivity.CODE_EXTRA_EXPRESSION)){
             String expression = intent.getStringExtra(MainActivity.CODE_EXTRA_EXPRESSION);
+            ResultReceiver receiver = intent.getParcelableExtra(MainActivity.CODE_EXTRA_RECEIVER);
             calculator.addExpression(expression)
-                    .addPattern(expressionPattern)
+                    .addExpressionPattern(expressionPattern)
                     .addMathSignsPattern(mathSignsPattern)
-                    .addNumberPattern(numberPattern);
+                    .addNumberPattern(numberPattern)
+                    .addResultReceiver(receiver);
         }
-
-        executor.execute(calculator);
-
-        return super.onStartCommand(intent, flags, startId);
+        calculator.run();
     }
 
     @Override
@@ -68,6 +80,7 @@ public class MainService extends Service {
         private Pattern numberPattern;
         private double firstNumber;
         private double secondNumber;
+        private ResultReceiver resultReceiver;
         private MathSigns sign;
 
         CalculatorRun() {
@@ -78,7 +91,7 @@ public class MainService extends Service {
             return this;
         }
 
-        CalculatorRun addPattern(Pattern expressionPattern){
+        CalculatorRun addExpressionPattern(Pattern expressionPattern){
             this.expressionPattern = expressionPattern;
             return this;
         }
@@ -90,6 +103,11 @@ public class MainService extends Service {
 
         CalculatorRun addNumberPattern(Pattern numberPattern){
             this.numberPattern = numberPattern;
+            return this;
+        }
+
+        CalculatorRun addResultReceiver(ResultReceiver resultReceiver){
+            this.resultReceiver = resultReceiver;
             return this;
         }
 
@@ -154,21 +172,24 @@ public class MainService extends Service {
 
         private void sendError(){
             Intent intent  = new Intent(MainActivity.CODE_BROADCAST_ACTION);
-            intent.putExtra(MainActivity.CODE_STATUS, MainActivity.CODE_ERROR);
-            sendBroadcast(intent);
+            //intent.putExtra(MainActivity.CODE_STATUS, MainActivity.CODE_ERROR);
+            //sendBroadcast(intent);
+            resultReceiver.send(CalculatorResultReceiver.RESULT_CODE_ERROR, intent.getExtras());
         }
 
         private void sendErrorDivideByZero(){
             Intent intent  = new Intent(MainActivity.CODE_BROADCAST_ACTION);
-            intent.putExtra(MainActivity.CODE_STATUS, MainActivity.CODE_ERROR_DIVIDE_BY_ZERO);
-            sendBroadcast(intent);
+            //intent.putExtra(MainActivity.CODE_STATUS, MainActivity.CODE_ERROR_DIVIDE_BY_ZERO);
+            //sendBroadcast(intent);
+            resultReceiver.send(CalculatorResultReceiver.RESULT_CODE_DIVIDE_BY_ZERO, intent.getExtras());
         }
 
         private void sendResult(double result){
             Intent intent  = new Intent(MainActivity.CODE_BROADCAST_ACTION);
-            intent.putExtra(MainActivity.CODE_STATUS, MainActivity.CODE_SUCCESS);
+            //intent.putExtra(MainActivity.CODE_STATUS, MainActivity.CODE_SUCCESS);
             intent.putExtra(MainActivity.CODE_RESULT, result);
-            sendBroadcast(intent);
+            //sendBroadcast(intent);
+            resultReceiver.send(CalculatorResultReceiver.RESULT_CODE_OK, intent.getExtras());
         }
     }
 }

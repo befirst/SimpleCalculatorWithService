@@ -15,6 +15,8 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.EditText;
 
+import java.lang.ref.WeakReference;
+
 public class MainActivity extends AppCompatActivity{
 
     public static final String CODE_STATUS = "CODE_STATUS";
@@ -24,6 +26,7 @@ public class MainActivity extends AppCompatActivity{
     public static final String CODE_RESULT = "CODE_RESULT";
 
     public static final String CODE_EXTRA_EXPRESSION = "CODE_EXTRA_EXPRESSION";
+    public static final String CODE_EXTRA_RECEIVER = "CODE_EXTRA_RECEIVER";
 
     public static final String CODE_BROADCAST_ACTION =
             "com.example.simbirsoft.denis.calculateservice.servicebackbroadcast";
@@ -70,9 +73,10 @@ public class MainActivity extends AppCompatActivity{
     }
 
     private void onFloatingButtonClick(View view) {
-        Intent intent = new Intent(this, MainService.class);
-        intent.putExtra(CODE_EXTRA_EXPRESSION, expression.getText().toString());
-        startService(intent);
+        //Intent intent = new Intent(this, MainService.class);
+        //intent.putExtra(CODE_EXTRA_EXPRESSION, expression.getText().toString());
+        MainService.startCalculationByService(this, new CalculationResultReceiver(this),expression.getText().toString());
+        //startService(intent);
     }
 
     private void onReceiveFromService(Context context, Intent intent) {
@@ -105,6 +109,28 @@ public class MainActivity extends AppCompatActivity{
         alert.show(getSupportFragmentManager(), DIALOG_TAG);
     }
 
+    private static class CalculationResultReceiver implements CalculatorResultReceiver.ResultReceiverCallBack{
+        private WeakReference<MainActivity> activityRef;
+
+        public CalculationResultReceiver(MainActivity activity){
+            activityRef = new WeakReference<MainActivity>(activity);
+        }
+
+        @Override
+        public void onSuccess(double data) {
+            activityRef.get().onServiceSuccess(data);
+        }
+
+        @Override
+        public void onError() {
+            activityRef.get().onServiceError();
+        }
+
+        @Override
+        public void onErrorDivideByZero() {
+            activityRef.get().onServiceDivideByZero();
+        }
+    }
 
     //region OptionsMenu
     @Override
